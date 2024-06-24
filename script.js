@@ -8,7 +8,7 @@ let isEditMode = false;
 
 function displayItems() {
   const itemsFromStorage = getItemsFromStorage();
-  itemsFromStorage.forEach((item) => addItemToDOM(item));
+  itemsFromStorage.forEach((item) => addItemToDOM(item.name, item.timestamp));
   checkUI();
 }
 
@@ -24,11 +24,13 @@ function onAddItemSubmit(e) {
     return;
   }
 
+  const timestamp = new Date().toLocaleString();
+
   // Check for edit mode
   if (isEditMode) {
     const itemToEdit = itemList.querySelector('.edit-mode');
 
-    removeItemFromStorage(itemToEdit.textContent);
+    removeItemFromStorage(itemToEdit.querySelector('.item-name').textContent);
     itemToEdit.classList.remove('edit-mode');
     itemToEdit.remove();
     isEditMode = false;
@@ -40,20 +42,31 @@ function onAddItemSubmit(e) {
   }
 
   // Create item DOM element
-  addItemToDOM(newItem);
+  addItemToDOM(newItem, timestamp);
 
   // Add item to local storage
-  addItemToStorage(newItem);
+  addItemToStorage(newItem, timestamp);
 
   checkUI();
 
   itemInput.value = '';
 }
 
-function addItemToDOM(item) {
+function addItemToDOM(item, timestamp) {
   // Create list item
   const li = document.createElement('li');
-  li.appendChild(document.createTextNode(item));
+
+  const itemName = document.createElement('span');
+  itemName.className = 'item-name';
+  itemName.appendChild(document.createTextNode(item));
+
+  // Create and append timestamp
+  const itemTimestamp = document.createElement('span');
+  itemTimestamp.className = 'item-timestamp';
+  itemTimestamp.appendChild(document.createTextNode(`${timestamp}`));
+
+  li.appendChild(itemName);
+  li.appendChild(itemTimestamp);
 
   const button = createButton('remove-item btn-link text-red');
   li.appendChild(button);
@@ -76,11 +89,11 @@ function createIcon(classes) {
   return icon;
 }
 
-function addItemToStorage(item) {
+function addItemToStorage(item, timestamp) {
   const itemsFromStorage = getItemsFromStorage();
 
   // Add new item to array
-  itemsFromStorage.push(item);
+  itemsFromStorage.push({ name: item, timestamp: timestamp });
 
   // Convert to JSON string and set to local storage
   localStorage.setItem('items', JSON.stringify(itemsFromStorage));
@@ -102,13 +115,13 @@ function onClickItem(e) {
   if (e.target.parentElement.classList.contains('remove-item')) {
     removeItem(e.target.parentElement.parentElement);
   } else if (e.target.closest('li')) {
-    setItemToEdit(e.target);
+    setItemToEdit(e.target.closest('li'));
   }
 }
 
 function checkIfItemExists(item) {
   const itemsFromStorage = getItemsFromStorage();
-  return itemsFromStorage.includes(item);
+  return itemsFromStorage.some((i) => i.name === item);
 }
 
 function setItemToEdit(item) {
@@ -121,18 +134,22 @@ function setItemToEdit(item) {
   item.classList.add('edit-mode');
   formBtn.innerHTML = '<i class="fa-solid fa-pen"></i>   Update Item';
   formBtn.style.backgroundColor = '#228B22';
-  itemInput.value = item.textContent;
+  itemInput.value = item.querySelector('.item-name').textContent;
 }
 
 function removeItem(item) {
   if (
-    confirm(`Are you sure you want to remove the item "${item.textContent}"?`)
+    confirm(
+      `Are you sure you want to remove the item "${
+        item.querySelector('.item-name').textContent
+      }"?`
+    )
   ) {
     // Remove item from DOM
     item.remove();
 
     // Remove item from storage
-    removeItemFromStorage(item.textContent);
+    removeItemFromStorage(item.querySelector('.item-name').textContent);
 
     checkUI();
   }
@@ -142,7 +159,7 @@ function removeItemFromStorage(item) {
   let itemsFromStorage = getItemsFromStorage();
 
   // Filter out item to be removed
-  itemsFromStorage = itemsFromStorage.filter((i) => i !== item);
+  itemsFromStorage = itemsFromStorage.filter((i) => i.name !== item);
 
   // Re-set to localstorage
   localStorage.setItem('items', JSON.stringify(itemsFromStorage));
@@ -164,7 +181,7 @@ function filterItems(e) {
   const text = e.target.value.toLowerCase();
 
   items.forEach((item) => {
-    const itemName = item.firstChild.textContent.toLowerCase();
+    const itemName = item.querySelector('.item-name').textContent.toLowerCase();
 
     if (itemName.indexOf(text) != -1) {
       item.style.display = 'flex';
